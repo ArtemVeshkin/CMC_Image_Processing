@@ -67,7 +67,7 @@ def mirror(params, input_file):
         sys.exit(1)
 
     del new_image_draw
-    return image
+    return new_image
 
 
 # extract (left_x) (top_y) (width) (height)
@@ -88,26 +88,11 @@ def extract(params, input_file):
     return new_image
 
 
-def rotate90(image):
-    pixels = image.load()
-
-    width, height = image.size
-    new_image = Image.new("RGBA", (height, width))
-    new_image_draw = ImageDraw.Draw(new_image)
-
-    for i in range(width):
-        for j in range(height):
-            new_image_draw.point((height - j, i), pixels[i, j])
-
-    del new_image_draw
-    return new_image
-
-
 # rotate {cw|ccw} (angle)
 def rotate(params, input_file):
     params[1] = int(params[1])
 
-    image = Image.open(input_file)
+    image = np.array(Image.open(input_file))
 
     times_to_rotate = (params[1] // 90) % 4
     if params[0] == "cww":
@@ -116,15 +101,13 @@ def rotate(params, input_file):
         sys.exit(1)
 
     for i in range(times_to_rotate):
-        new_image = rotate90(image)
-        del image
-        image = new_image
+        image = image.transpose((1, 0, 2))[:, ::-1, :]
 
-    return image
+    return Image.fromarray(image)
 
 
 def dup(image, size):
-    pixels = np.array(image)
+    pixels = np.array(image)[:, :, :3]
     width, height = image.size
     new_image_pixels = np.zeros((height + 2 * size, width + 2 * size, 3), dtype=np.uint8)
 
@@ -171,7 +154,7 @@ def next_pos(cur, size, direction):
 
 
 def even(image, size):
-    pixels = np.array(image)
+    pixels = np.array(image)[:, :, :3]
     width, height = image.size
     new_image_pixels = np.zeros((height + 2 * size, width + 2 * size, 3), dtype="uint8")
 
@@ -197,7 +180,7 @@ def even(image, size):
 
 
 def odd(image):
-    pixels = np.array(image)
+    pixels = np.array(image)[:, :, :3]
     width, height = image.size
     new_image_pixels = np.zeros((height + 2, width + 2, 3))
 
@@ -314,7 +297,7 @@ def gradient(params, input_file):
 
 if __name__ == '__main__':
     # for testing
-    # sys.argv[1:] = ["gradient", "3", "img/lena.bmp", "res.bmp"]
+    sys.argv[1:] = ["rotate", "cww", "90", "res.bmp", "res2.bmp"]
 
     parser = create_parser()
     namespace = parser.parse_args(sys.argv[1:])
