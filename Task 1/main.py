@@ -156,44 +156,57 @@ def next_pos(cur, size, direction):
 def even(image, size):
     pixels = np.array(image)[:, :, :3]
     width, height = image.size
-    new_image_pixels = np.zeros((height + 2 * size, width + 2 * size, 3), dtype="uint8")
+    new_pixels = np.zeros((height + 2 * size, width + 2 * size, 3), dtype="uint8")
 
-    new_image_pixels[size: -size, size: -size] += pixels
+    new_pixels[size: -size, size: -size] += pixels
 
     cur1, cur2, direction1, direction2 = 0, 0, 1, 0
     for step in range(size):
         cur1, direction1 = next_pos(cur1, width, direction1)
         cur2, direction2 = next_pos(cur2, width, direction2)
         for i in range(height):
-            new_image_pixels[i + size, size - step] = new_image_pixels[i + size, size + cur1]
-            new_image_pixels[i + size, size + width + step] = new_image_pixels[i + size, size + width - cur2 - 1]
+            new_pixels[i + size, size - step - 1] = new_pixels[i + size, size + cur1 - 1]
+            new_pixels[i + size, size + width + step] = new_pixels[i + size, size + width - cur2 - 1]
 
     cur1, cur2, direction1, direction2 = 0, 0, 1, 0
     for step in range(size):
         cur1, direction1 = next_pos(cur1, height, direction1)
         cur2, direction2 = next_pos(cur2, height, direction2)
         for i in range(width + size * 2):
-            new_image_pixels[size - step, i] = new_image_pixels[size + cur1, i]
-            new_image_pixels[size + height + step, i] = new_image_pixels[size + height - cur2 - 1, i]
+            new_pixels[size - step - 1, i] = new_pixels[size + cur1, i]
+            new_pixels[size + height + step, i] = new_pixels[size + height - cur2 - 1, i]
 
-    return Image.fromarray(new_image_pixels)
+    return Image.fromarray(new_pixels)
 
 
-def odd(image):
+def odd(image, size):
     pixels = np.array(image)[:, :, :3]
     width, height = image.size
-    new_image_pixels = np.zeros((height + 2, width + 2, 3))
+    new_pixels = np.zeros((height + 2 * size, width + 2 * size, 3))
 
-    new_image_pixels[1: -1, 1: -1] += pixels
-    for i in range(height):
-        new_image_pixels[i + 1, 0] = pixels[i, 0] - [1, 1, 1]
-        new_image_pixels[i + 1, width + 1] = pixels[i, width - 1] + [1, 1, 1]
+    new_pixels[size: -size, size: -size] += pixels
 
-    for i in range(width + 2):
-        new_image_pixels[0, i] = new_image_pixels[1, i] - [1, 1, 1]
-        new_image_pixels[height, i] = new_image_pixels[height - 1, i] + [1, 1, 1]
+    cur1, cur2, direction1, direction2 = 0, 0, 1, 0
+    for step in range(size):
+        cur1, direction1 = next_pos(cur1, width, direction1)
+        cur2, direction2 = next_pos(cur2, width, direction2)
+        for i in range(height):
+            new_pixels[i + size, size - step - 1] = 2 * new_pixels[i + size, size] \
+                                                    - new_pixels[i + size, size + cur1 - 1]
+            new_pixels[i + size, size + width + step] = 2 * new_pixels[i + size, size + width - 1] \
+                                                        - new_pixels[i + size, size + width - cur2 - 1]
 
-    return Image.fromarray(normalize(new_image_pixels))
+    cur1, cur2, direction1, direction2 = 0, 0, 1, 0
+    for step in range(size):
+        cur1, direction1 = next_pos(cur1, height, direction1)
+        cur2, direction2 = next_pos(cur2, height, direction2)
+        for i in range(width + size * 2):
+            new_pixels[size - step - 1, i] = 2 * new_pixels[size, i] \
+                                             - new_pixels[size + cur1, i]
+            new_pixels[size + height + step, i] = 2 * new_pixels[size + height - 1, i] \
+                                                  - new_pixels[size + height - cur2 - 1, i]
+
+    return Image.fromarray(normalize(new_pixels))
 
 
 # extend {dup|even|odd} (size)
@@ -210,34 +223,20 @@ def extend(params, input_file):
         del image
         image = new_image
     elif params[0] == "odd":
-        for i in range(params[1]):
-            new_image = odd(image)
-            del image
-            image = new_image
+        new_image = odd(image, params[1])
+        del image
+        image = new_image
     else:
         sys.exit(1)
 
     return image
 
 
-def gauss_mask(sigma, ms):
+def generate_mask(ms, func):
     mask = np.zeros((ms * 2 + 1, ms * 2 + 1))
-    for i in range(ms + 1):
-        for j in range(ms + 1):
-            mask[ms + i, ms + j] \
-                = mask[ms - i, ms - j] \
-                = mask[ms - i, ms + j] \
-                = mask[ms + i, ms - j] \
-                = math.exp(-(i ** 2 + j ** 2) / (2 * (sigma ** 2)))
-    mask /= mask.sum()
-    return mask
-
-
-def gauss_d_mask(sigma, ms):
-    mask = np.zeros((ms * 2 + 1))
     for i in range(-ms, ms + 1):
-        mask[ms - i] = -(i / sigma ** 2) * math.exp(-(i ** 2) / (2 * (sigma ** 2)))
-    mask /= mask.sum()
+        for j in range(-ms, ms + 1):
+            mask[ms + i, ms + j] = func(i, j)
     return mask
 
 
@@ -248,7 +247,8 @@ def gauss(params, input_file):
     ms = math.ceil(sigma * 3)
 
     # Using 6*sigma x 6*sigma Gaussian mask
-    mask = gauss_mask(sigma, ms)
+    mask = generate_mask(ms, lambda x, y: math.exp(-(x ** 2 + y ** 2) / (2 * (sigma ** 2))))
+    mask /= mask.sum()
 
     pixels = np.array(extend(["dup", str(ms)], input_file))
     new_pixels = np.zeros((pixels.shape[0] - ms * 2, pixels.shape[1] - ms * 2, 3))
@@ -256,9 +256,8 @@ def gauss(params, input_file):
     for i in range(new_pixels.shape[0]):
         for j in range(new_pixels.shape[1]):
             # Convolution
-            new_pixels[i, j, 0] = pixels[i:i + 2 * ms + 1, j:j + 2 * ms + 1, 0].dot(mask).diagonal().sum()
-            new_pixels[i, j, 1] = pixels[i:i + 2 * ms + 1, j:j + 2 * ms + 1, 1].dot(mask).diagonal().sum()
-            new_pixels[i, j, 2] = pixels[i:i + 2 * ms + 1, j:j + 2 * ms + 1, 2].dot(mask).diagonal().sum()
+            for c in range(3):
+                new_pixels[i, j, c] = pixels[i:i + 2 * ms + 1, j:j + 2 * ms + 1, c].dot(mask).diagonal().sum()
 
     return Image.fromarray(normalize(new_pixels))
 
@@ -269,24 +268,22 @@ def gradient(params, input_file):
 
     # Mask size / 2
     ms = math.ceil(sigma * 3.5)
-    mask = gauss_d_mask(sigma, ms)
+    x_mask = generate_mask(ms, lambda x, y: -x / (sigma ** 2) * math.exp(-(x ** 2 + y ** 2) / (2 * (sigma ** 2))))
+    y_mask = generate_mask(ms, lambda x, y: -y / (sigma ** 2) * math.exp(-(x ** 2 + y ** 2) / (2 * (sigma ** 2))))
 
     pixels = np.array(extend(["dup", str(ms)], input_file))
 
     # Converting to grayscale
-    for i in range(pixels.shape[0]):
-        for j in range(pixels.shape[1]):
-            r, g, b = pixels[i, j]
-            c = 0.299 * r + 0.587 * g + 0.114 * b
-            pixels[i, j] = (c, c, c)
+    pixels[:, :, 0] = 0.299 * pixels[:, :, 0] + 0.587 * pixels[:, :, 1] + 0.114 * pixels[:, :, 2]
 
     new_pixels = np.zeros((pixels.shape[0] - ms * 2, pixels.shape[1] - ms * 2, 3))
     # Calculating gradient
     for i in range(new_pixels.shape[0]):
         for j in range(new_pixels.shape[1]):
             # Convolution
-            horizontal = pixels[i + ms, j:j + 2 * ms + 1, 0].dot(mask)
-            vertical = pixels[i:i + 2 * ms + 1, j + ms, 0].dot(mask)
+            horizontal = pixels[i:i + 2 * ms + 1, j:j + 2 * ms + 1, 0].dot(x_mask).diagonal().sum()
+            vertical = pixels[i:i + 2 * ms + 1, j:j + 2 * ms + 1, 0].dot(y_mask).diagonal().sum()
+
             new_pixels[i, j, 0] \
                 = new_pixels[i, j, 1] \
                 = new_pixels[i, j, 2] = math.sqrt(horizontal ** 2 + vertical ** 2)
@@ -297,7 +294,7 @@ def gradient(params, input_file):
 
 if __name__ == '__main__':
     # for testing
-    sys.argv[1:] = ["rotate", "cww", "90", "res.bmp", "res2.bmp"]
+    sys.argv[1:] = ["gradient", "3", "img/parrots.bmp", "res.bmp"]
 
     parser = create_parser()
     namespace = parser.parse_args(sys.argv[1:])
