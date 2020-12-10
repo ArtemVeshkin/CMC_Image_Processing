@@ -294,7 +294,7 @@ def gradient(params, input_file):
 
 if __name__ == '__main__':
     # for testing
-    sys.argv[1:] = ["gradient", "3", "img/parrots.bmp", "res.bmp"]
+    # sys.argv[1:] = ["gradient", "3", "img/parrots.bmp", "res.bmp"]
 
     parser = create_parser()
     namespace = parser.parse_args(sys.argv[1:])
