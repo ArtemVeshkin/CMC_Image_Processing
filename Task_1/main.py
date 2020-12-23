@@ -47,27 +47,16 @@ def normalize(image):
 
 # mirror {x|y}
 def mirror(params, input_file):
-    image = Image.open(input_file)
-    width, height = image.size
-    pixels = image.load()
-
-    new_image = Image.new("RGBA", (width, height))
-    new_image_draw = ImageDraw.Draw(new_image)
+    image = np.array(Image.open(input_file))
 
     if params[0] == "x":
-        for i in range(width):
-            for j in range(height):
-                new_image_draw.point((width - i, j), pixels[i, j])
+        image = image[:, ::-1, :]
     elif params[0] == "y":
-        for i in range(width):
-            for j in range(height):
-                new_image_draw.point((i, height - j), pixels[i, j])
+        image = image[::-1, :, :]
     else:
-        del new_image_draw
         sys.exit(1)
 
-    del new_image_draw
-    return new_image
+    return Image.fromarray(image)
 
 
 # extract (left_x) (top_y) (width) (height)
@@ -165,8 +154,8 @@ def even(image, size):
         cur1, direction1 = next_pos(cur1, width, direction1)
         cur2, direction2 = next_pos(cur2, width, direction2)
         for i in range(height):
-            new_pixels[i + size, size - step - 1] = new_pixels[i + size, size + cur1 - 1]
-            new_pixels[i + size, size + width + step] = new_pixels[i + size, size + width - cur2 - 1]
+            new_pixels[i + size, size - step - 1] = new_pixels[i + size, size + cur1]
+            new_pixels[i + size, size + width + step] = new_pixels[i + size, size + width - cur2 - 2]
 
     cur1, cur2, direction1, direction2 = 0, 0, 1, 0
     for step in range(size):
@@ -174,7 +163,7 @@ def even(image, size):
         cur2, direction2 = next_pos(cur2, height, direction2)
         for i in range(width + size * 2):
             new_pixels[size - step - 1, i] = new_pixels[size + cur1, i]
-            new_pixels[size + height + step, i] = new_pixels[size + height - cur2 - 1, i]
+            new_pixels[size + height + step, i] = new_pixels[size + height - cur2 - 2, i]
 
     return Image.fromarray(new_pixels)
 
@@ -192,9 +181,9 @@ def odd(image, size):
         cur2, direction2 = next_pos(cur2, width, direction2)
         for i in range(height):
             new_pixels[i + size, size - step - 1] = 2 * new_pixels[i + size, size] \
-                                                    - new_pixels[i + size, size + cur1 - 1]
+                                                    - new_pixels[i + size, size + cur1]
             new_pixels[i + size, size + width + step] = 2 * new_pixels[i + size, size + width - 1] \
-                                                        - new_pixels[i + size, size + width - cur2 - 1]
+                                                        - new_pixels[i + size, size + width - cur2 - 2]
 
     cur1, cur2, direction1, direction2 = 0, 0, 1, 0
     for step in range(size):
@@ -204,7 +193,7 @@ def odd(image, size):
             new_pixels[size - step - 1, i] = 2 * new_pixels[size, i] \
                                              - new_pixels[size + cur1, i]
             new_pixels[size + height + step, i] = 2 * new_pixels[size + height - 1, i] \
-                                                  - new_pixels[size + height - cur2 - 1, i]
+                                                  - new_pixels[size + height - cur2 - 2, i]
 
     return Image.fromarray(normalize(new_pixels))
 
@@ -292,9 +281,20 @@ def gradient(params, input_file):
     return Image.fromarray(normalize(new_pixels))
 
 
+# for testing
+def get_difference(my_file, right_file, out):
+    my_image = np.array(Image.open(my_file))[:, :, :3]
+    right_image = np.array(Image.open(right_file))[:, :, :3]
+
+    result = np.zeros((max(my_image.shape[0], right_image.shape[0]), max(my_image.shape[1], right_image.shape[1]), 3))
+    result[0:my_image.shape[0], 0:my_image.shape[1], :] += my_image
+    result[0:right_image.shape[0], 0:right_image.shape[1], :] = abs(result[0:right_image.shape[0], 0:right_image.shape[1], :] - right_image)
+    Image.fromarray(normalize(result) * 10).save(out)
+
+
 if __name__ == '__main__':
     # for testing
-    sys.argv[1:] = ["gradient", "3", "img/parrots.bmp", "res.bmp"]
+    # sys.argv[1:] = ["extend", "odd", "7", "testing/parrot.png", "res.bmp"]
 
     parser = create_parser()
     namespace = parser.parse_args(sys.argv[1:])
@@ -302,3 +302,6 @@ if __name__ == '__main__':
     command = globals()[namespace.command]
     changed_image = command(namespace.params, namespace.input_file[0])
     changed_image.save(namespace.output_file[0])
+
+    # for testing
+    # get_difference("res.bmp", "testing/14.png", "difference.bmp")
