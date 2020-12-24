@@ -294,7 +294,7 @@ def get_difference(my_file, right_file, out):
 
 if __name__ == '__main__':
     # for testing
-    # sys.argv[1:] = ["extend", "odd", "7", "testing/parrot.png", "res.bmp"]
+    # sys.argv[1:] = ["extend", "odd", "7", "/testing/parrot.png", "res.bmp"]
 
     parser = create_parser()
     namespace = parser.parse_args(sys.argv[1:])
