@@ -3,4 +3,5 @@
 Директория                | Описание
 --------------------------|----------------------
 [Task_1/](https://github.com/ArtemVeshkin/CMC_Image_Processing/tree/main/Task_1) | Задание 1
+[Task_2/](https://github.com/ArtemVeshkin/CMC_Image_Processing/tree/main/Task_2) | Задание 2
 
