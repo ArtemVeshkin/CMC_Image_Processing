@@ -87,9 +87,18 @@ def denoise(params):
     pass
 
 
+# for testing
+def get_difference(first, second, out):
+    image1 = np.array(Image.open(first), dtype="float64")[:, :, :3]
+    image2 = np.array(Image.open(second), dtype="float64")[:, :, :3]
+
+    result = np.vectorize(abs)(image1 - image2)
+    make_image(result * 4).save(out)
+
+
 if __name__ == '__main__':
     # for testing
-    generating = 0
+    generating = 1
     if not generating:
         sys.argv[1:] = ["mse", "noisy.bmp", "../img/lena.bmp"]
 
@@ -103,5 +112,8 @@ if __name__ == '__main__':
         else:
             print(result)
     else:
-        result = gen_noisy_image("../img/lena.bmp", 32)
-        result.save("noisy.bmp")
+        source = "../img/lena.bmp"
+        noisy = "noisy.bmp"
+        result = gen_noisy_image(source, 32)
+        result.save(noisy)
+        get_difference(source, noisy, "res.bmp")
