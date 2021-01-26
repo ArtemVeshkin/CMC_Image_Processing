@@ -10,28 +10,28 @@ def create_parser():
     subparsers = parser.add_subparsers(dest="command")
 
     # mse (input_file_1) (input_file_2)
-    gradient_parser = subparsers.add_parser("mse")
-    gradient_parser.add_argument("params", nargs=2)
+    subparser = subparsers.add_parser("mse")
+    subparser.add_argument("params", nargs=2)
 
     # calc_noise (input_file)
-    gradient_parser = subparsers.add_parser("calc_noise")
-    gradient_parser.add_argument("params", nargs=1)
+    subparser = subparsers.add_parser("calc_noise")
+    subparser.add_argument("params", nargs=1)
 
     # median (r) (input_file) (output_file)
-    gradient_parser = subparsers.add_parser("median")
-    gradient_parser.add_argument("params", nargs=3)
+    subparser = subparsers.add_parser("median")
+    subparser.add_argument("params", nargs=3)
 
     # bilateral (sigma_d) (sigma_r) (input_file) (output_file)
-    gradient_parser = subparsers.add_parser("bilateral")
-    gradient_parser.add_argument("params", nargs=4)
+    subparser = subparsers.add_parser("bilateral")
+    subparser.add_argument("params", nargs=4)
 
     # query (noise_level)
-    gradient_parser = subparsers.add_parser("query")
-    gradient_parser.add_argument("params", nargs=1)
+    subparser = subparsers.add_parser("query")
+    subparser.add_argument("params", nargs=1)
 
     # denoise (input_file) (output_file)
-    gradient_parser = subparsers.add_parser("denoise")
-    gradient_parser.add_argument("params", nargs=2)
+    subparser = subparsers.add_parser("denoise")
+    subparser.add_argument("params", nargs=2)
 
     return parser
 
@@ -69,7 +69,19 @@ def calc_noise(params):
 
 # median (r) (input_file) (output_file)
 def median(params):
-    pass
+    r = int(params[0])
+    image = np.array(Image.open(params[1]))
+    height, width = image.shape[0:2]
+    for i in range(height):
+        for j in range(width):
+            image[i, j, 0] = np.median(
+                image[max(0, i - r):min(height, i + r + 1), max(0, j - r):min(width, j + r + 1), 0])
+            image[i, j, 1] = np.median(
+                image[max(0, i - r):min(height, i + r + 1), max(0, j - r):min(width, j + r + 1), 1])
+            image[i, j, 2] = np.median(
+                image[max(0, i - r):min(height, i + r + 1), max(0, j - r):min(width, j + r + 1), 2])
+
+    return make_image(image)
 
 
 # bilateral (sigma_d) (sigma_r) (input_file) (output_file)
@@ -88,19 +100,19 @@ def denoise(params):
 
 
 # for testing
-def get_difference(first, second, out):
+def get_difference(first, second):
     image1 = np.array(Image.open(first), dtype="float64")[:, :, :3]
     image2 = np.array(Image.open(second), dtype="float64")[:, :, :3]
 
     result = np.vectorize(abs)(image1 - image2)
-    make_image(result * 4).save(out)
+    make_image(result * 4)
 
 
 if __name__ == '__main__':
     # for testing
-    generating = 1
+    generating = 0
     if not generating:
-        sys.argv[1:] = ["mse", "noisy.bmp", "../img/lena.bmp"]
+        sys.argv[1:] = ["median", "1", "noisy.bmp", "res.bmp"]
 
         parser = create_parser()
         namespace = parser.parse_args(sys.argv[1:])
@@ -116,4 +128,4 @@ if __name__ == '__main__':
         noisy = "noisy.bmp"
         result = gen_noisy_image(source, 32)
         result.save(noisy)
-        get_difference(source, noisy, "res.bmp")
+        get_difference(source, noisy).save("res.bmp")
