@@ -70,18 +70,19 @@ def calc_noise(params):
 # median (r) (input_file) (output_file)
 def median(params):
     r = int(params[0])
-    image = np.array(Image.open(params[1]))
-    height, width = image.shape[0:2]
+    noisy = np.array(Image.open(params[1]))
+    clean = noisy
+    height, width = noisy.shape[0:2]
     for i in range(height):
         for j in range(width):
-            image[i, j, 0] = np.median(
-                image[max(0, i - r):min(height, i + r + 1), max(0, j - r):min(width, j + r + 1), 0])
-            image[i, j, 1] = np.median(
-                image[max(0, i - r):min(height, i + r + 1), max(0, j - r):min(width, j + r + 1), 1])
-            image[i, j, 2] = np.median(
-                image[max(0, i - r):min(height, i + r + 1), max(0, j - r):min(width, j + r + 1), 2])
+            clean[i, j, 0] = np.median(
+                noisy[max(0, i - r):min(height, i + r + 1), max(0, j - r):min(width, j + r + 1), 0])
+            clean[i, j, 1] = np.median(
+                noisy[max(0, i - r):min(height, i + r + 1), max(0, j - r):min(width, j + r + 1), 1])
+            clean[i, j, 2] = np.median(
+                noisy[max(0, i - r):min(height, i + r + 1), max(0, j - r):min(width, j + r + 1), 2])
 
-    return make_image(image)
+    return make_image(clean)
 
 
 # bilateral (sigma_d) (sigma_r) (input_file) (output_file)
@@ -105,7 +106,7 @@ def get_difference(first, second):
     image2 = np.array(Image.open(second), dtype="float64")[:, :, :3]
 
     result = np.vectorize(abs)(image1 - image2)
-    make_image(result * 4)
+    return make_image(result * 4)
 
 
 if __name__ == '__main__':
@@ -126,6 +127,6 @@ if __name__ == '__main__':
     else:
         source = "../img/lena.bmp"
         noisy = "noisy.bmp"
-        result = gen_noisy_image(source, 32)
+        result = gen_noisy_image(source, 64)
         result.save(noisy)
         get_difference(source, noisy).save("res.bmp")
