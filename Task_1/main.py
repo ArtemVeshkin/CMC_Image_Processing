@@ -84,7 +84,7 @@ def rotate(params, input_file):
     image = np.array(Image.open(input_file))
 
     times_to_rotate = (params[1] // 90) % 4
-    if params[0] == "cww":
+    if params[0] == "cсw":
         times_to_rotate = 4 - times_to_rotate
     elif params[0] != "cw":
         sys.exit(1)
