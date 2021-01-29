@@ -84,7 +84,7 @@ def extend(image, size):
                 else:
                     new_image_pixels[i, j] = pixels[height - 1, width - 1]
 
-    return Image.fromarray(new_image_pixels)
+    return new_image_pixels
 
 
 # mse (input_file_1) (input_file_2)
@@ -106,6 +106,7 @@ def median(params):
     clean = noisy
     height, width = noisy.shape[0:2]
     for i in range(height):
+        print("progress:" + str(i) + "/" + str(height))
         for j in range(width):
             clean[i, j, 0] = np.median(
                 noisy[max(0, i - r):min(height, i + r + 1), max(0, j - r):min(width, j + r + 1), 0])
@@ -121,11 +122,12 @@ def gauss(x, sigma):
     return 1 / (2 * np.pi * sigma ** 2) * np.exp(-x ** 2 / (2 * sigma ** 2))
 
 
-def generate_mask(mask_size, sigma_d, sigma_r):
+def generate_mask(mask_size, sigma_d, sigma_r, intensities):
     mask = np.zeros((mask_size * 2 + 1, mask_size * 2 + 1))
     for i in range(-mask_size, mask_size + 1):
         for j in range(-mask_size, mask_size + 1):
-            mask[mask_size + i, mask_size + j] = gauss(, sigma_d) * gauss(, sigma_r)
+            mask[mask_size + i, mask_size + j] = gauss(np.sqrt(i ** 2 + j ** 2), sigma_d) \
+                                                 * gauss(intensities[i, j], sigma_r)
     return mask
 
 
@@ -135,21 +137,23 @@ def bilateral(params):
     sigma_r = float(params[1])
 
     mask_size = 2
+    image = extend(Image.open(params[2]), mask_size) if str(type(params[2])) != "<class 'PIL.Image.Image'>" \
+        else extend(params[2], mask_size)
+    new_image = np.array(Image.open(params[2])) if str(type(params[2])) != "<class 'PIL.Image.Image'>" \
+        else np.array(params[2])
 
-    # Using 6*sigma x 6*sigma Gaussian mask
-    mask = generate_mask(ms, lambda x, y: math.exp(-(x ** 2 + y ** 2) / (2 * (sigma ** 2))))
-    mask /= mask.sum()
-
-    pixels = np.array(extend(["dup", str(ms)], input_file))
-    new_pixels = np.zeros((pixels.shape[0] - ms * 2, pixels.shape[1] - ms * 2, 3))
-
-    for i in range(new_pixels.shape[0]):
-        for j in range(new_pixels.shape[1]):
-            # Convolution
+    for i in range(new_image.shape[0]):
+        print("progress:" + str(i) + "/" + str(new_image.shape[0]))
+        for j in range(new_image.shape[1]):
+            intensity = image[i:i + 2 * mask_size + 1, j:j + 2 * mask_size + 1] - image[i + mask_size, j + mask_size]
+            intensity = (intensity[:, :, 0] + intensity[:, :, 1] + intensity[:, :, 2]) / 3
+            mask = generate_mask(mask_size, sigma_d, sigma_r, np.abs(intensity))
+            mask /= mask.sum()
             for c in range(3):
-                new_pixels[i, j, c] = pixels[i:i + 2 * ms + 1, j:j + 2 * ms + 1, c].dot(mask).diagonal().sum()
+                new_image[i, j, c] = image[i:i + 2 * mask_size + 1, j:j + 2 * mask_size + 1, c] \
+                    .dot(mask).diagonal().sum()
 
-    return Image.fromarray(normalize(new_pixels))
+    return Image.fromarray(normalize(new_image))
 
 
 # query (noise_level)
@@ -159,7 +163,12 @@ def query(params):
 
 # denoise (input_file) (output_file)
 def denoise(params):
-    pass
+    r = 1
+    sigma_d = 2
+    sigma_r = 16
+    image = median([r, params[0], params[1]])
+    return bilateral([sigma_d, sigma_r, image, params[1]])
+
 
 
 # for testing
@@ -175,7 +184,10 @@ if __name__ == '__main__':
     # for testing
     generating = 0
     if not generating:
-        sys.argv[1:] = ["median", "1", "noisy.bmp", "res.bmp"]
+        # sys.argv[1:] = ["median", "1", "noisy.bmp", "res.bmp"]
+        # sys.argv[1:] = ["bilateral", "2", "64", "noisy.bmp", "res.bmp"]
+        # sys.argv[1:] = ["mse", "../img/lena.bmp", "res.bmp"]
+        # sys.argv[1:] = ["denoise", "noisy.bmp", "res.bmp"]
 
         parser = create_parser()
         namespace = parser.parse_args(sys.argv[1:])
@@ -189,6 +201,6 @@ if __name__ == '__main__':
     else:
         source = "../img/lena.bmp"
         noisy = "noisy.bmp"
-        result = gen_noisy_image(source, 64)
+        result = gen_noisy_image(source, 16)
         result.save(noisy)
         get_difference(source, noisy).save("res.bmp")
