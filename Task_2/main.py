@@ -1,4 +1,4 @@
-from PIL import Image
+from PIL import Image, BmpImagePlugin
 import numpy as np
 import sys
 import math
@@ -89,20 +89,37 @@ def extend(image, size):
 
 # mse (input_file_1) (input_file_2)
 def mse(params):
-    image1 = np.array(Image.open(params[0]), dtype="float64")
-    image2 = np.array(Image.open(params[1]), dtype="float64")
+    image1 = np.array(Image.open(params[0]), dtype="float64") if not isinstance(params[0],
+                                                                                (Image.Image,
+                                                                                 BmpImagePlugin.BmpImageFile)) \
+        else np.array(params[0], dtype="float64")
+    image2 = np.array(Image.open(params[1]), dtype="float64") if not isinstance(params[1],
+                                                                                (Image.Image,
+                                                                                 BmpImagePlugin.BmpImageFile)) \
+        else np.array(params[1], dtype="float64")
     return math.sqrt(((image1 - image2) ** 2).sum() / image1.size)
+    # return ((image1 - image2) ** 2).sum() / image1.size
 
 
 # calc_noise (input_file)
 def calc_noise(params):
-    pass
+    r = 1
+    sigma_d = 2
+    sigma_r = 16
+    clean = median([r, params[0], ""])
+    clean = bilateral([sigma_d, sigma_r, clean, ""])
+    return mse([params[0], clean])
 
 
 # median (r) (input_file) (output_file)
 def median(params):
     r = int(params[0])
-    noisy = np.array(Image.open(params[1]))
+    noisy = np.array(Image.open(params[1])) if not isinstance(params[1],
+                                                              (Image.Image,
+                                                               BmpImagePlugin.BmpImageFile)) \
+        else np.array(params[1])
+    if r == 0:
+        return Image.fromarray(noisy)
     clean = noisy
     height, width = noisy.shape[0:2]
     for i in range(height):
@@ -137,9 +154,13 @@ def bilateral(params):
     sigma_r = float(params[1])
 
     mask_size = 2
-    image = extend(Image.open(params[2]), mask_size) if str(type(params[2])) != "<class 'PIL.Image.Image'>" \
+    image = extend(Image.open(params[2]), mask_size) if not isinstance(params[2],
+                                                                       (Image.Image,
+                                                                        BmpImagePlugin.BmpImageFile)) \
         else extend(params[2], mask_size)
-    new_image = np.array(Image.open(params[2])) if str(type(params[2])) != "<class 'PIL.Image.Image'>" \
+    new_image = np.array(Image.open(params[2])) if not isinstance(params[2],
+                                                                  (Image.Image,
+                                                                   BmpImagePlugin.BmpImageFile)) \
         else np.array(params[2])
 
     for i in range(new_image.shape[0]):
@@ -170,7 +191,6 @@ def denoise(params):
     return bilateral([sigma_d, sigma_r, image, params[1]])
 
 
-
 # for testing
 def get_difference(first, second):
     image1 = np.array(Image.open(first), dtype="float64")[:, :, :3]
@@ -183,18 +203,21 @@ def get_difference(first, second):
 if __name__ == '__main__':
     # for testing
     generating = 0
+    calc_queries = 0
     if not generating:
         # sys.argv[1:] = ["median", "1", "noisy.bmp", "res.bmp"]
         # sys.argv[1:] = ["bilateral", "2", "64", "noisy.bmp", "res.bmp"]
-        # sys.argv[1:] = ["mse", "../img/lena.bmp", "res.bmp"]
+        sys.argv[1:] = ["mse", "../img/lena.bmp", "noisy.bmp"]
         # sys.argv[1:] = ["denoise", "noisy.bmp", "res.bmp"]
+        # sys.argv[1:] = ["calc_noise", "noisy.bmp"]
 
         parser = create_parser()
         namespace = parser.parse_args(sys.argv[1:])
-
         command = globals()[namespace.command]
         result = command(namespace.params)
-        if str(type(result)) == "<class 'PIL.Image.Image'>":
+        if isinstance(result,
+                      (Image.Image,
+                       BmpImagePlugin.BmpImageFile)):
             result.save(namespace.params[-1])
         else:
             print(result)
@@ -204,3 +227,26 @@ if __name__ == '__main__':
         result = gen_noisy_image(source, 16)
         result.save(noisy)
         get_difference(source, noisy).save("res.bmp")
+
+    if calc_queries:
+        noise_range = [0, 255, 25]
+        r_range = [0, 2, 1]
+        sigma_d_range = [1, 4, 1]
+        sigma_r_range = [1, 64, 10]
+        source = "../img/lena.bmp"
+        data = "data.csv"
+
+        for noise_level in range(noise_range[0], noise_range[1], noise_range[2]):
+            noisy = gen_noisy_image(source, noise_level)
+            min_mse = 255
+            min_query = [-1, -1, -1]
+            for r in range(r_range[0], r_range[1], r_range[2]):
+                for sigma_d in range(sigma_d_range[0], sigma_d_range[1], sigma_d_range[2]):
+                    for sigma_r in range(sigma_r_range[0], sigma_r_range[1], sigma_r_range[2]):
+                        clean = median([r, noisy, ""])
+                        clean = bilateral([sigma_d, sigma_r, clean, ""])
+                        cur_mse = mse([clean, noisy])
+                        if cur_mse < min_mse:
+                            min_mse = cur_mse
+                            min_query = [r, sigma_d, sigma_r]
+            # TODO: Add to data.csv
