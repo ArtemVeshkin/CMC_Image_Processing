@@ -3,6 +3,7 @@ import numpy as np
 import sys
 import math
 import argparse
+import csv
 
 
 def create_parser():
@@ -123,7 +124,8 @@ def median(params):
     clean = noisy
     height, width = noisy.shape[0:2]
     for i in range(height):
-        print("progress:" + str(i) + "/" + str(height))
+        if i % 10 == 0:
+            print("progress:" + str(i) + "/" + str(height))
         for j in range(width):
             clean[i, j, 0] = np.median(
                 noisy[max(0, i - r):min(height, i + r + 1), max(0, j - r):min(width, j + r + 1), 0])
@@ -153,7 +155,7 @@ def bilateral(params):
     sigma_d = float(params[0])
     sigma_r = float(params[1])
 
-    mask_size = 2
+    mask_size = 1
     image = extend(Image.open(params[2]), mask_size) if not isinstance(params[2],
                                                                        (Image.Image,
                                                                         BmpImagePlugin.BmpImageFile)) \
@@ -164,7 +166,8 @@ def bilateral(params):
         else np.array(params[2])
 
     for i in range(new_image.shape[0]):
-        print("progress:" + str(i) + "/" + str(new_image.shape[0]))
+        if i % 10 == 0:
+            print("progress:" + str(i) + "/" + str(new_image.shape[0]))
         for j in range(new_image.shape[1]):
             intensity = image[i:i + 2 * mask_size + 1, j:j + 2 * mask_size + 1] - image[i + mask_size, j + mask_size]
             intensity = (intensity[:, :, 0] + intensity[:, :, 1] + intensity[:, :, 2]) / 3
@@ -185,8 +188,8 @@ def query(params):
 # denoise (input_file) (output_file)
 def denoise(params):
     r = 1
-    sigma_d = 2
-    sigma_r = 16
+    sigma_d = 3
+    sigma_r = 61
     image = median([r, params[0], params[1]])
     return bilateral([sigma_d, sigma_r, image, params[1]])
 
@@ -200,41 +203,48 @@ def get_difference(first, second):
     return make_image(result * 4)
 
 
+def csv_writer(data, path):
+    with open(path, "a", newline='') as csv_file:
+        writer = csv.writer(csv_file, delimiter=',')
+        for line in data:
+            writer.writerow(line)
+
+
 if __name__ == '__main__':
     # for testing
     generating = 0
-    calc_queries = 0
-    if not generating:
-        # sys.argv[1:] = ["median", "1", "noisy.bmp", "res.bmp"]
-        # sys.argv[1:] = ["bilateral", "2", "64", "noisy.bmp", "res.bmp"]
-        sys.argv[1:] = ["mse", "../img/lena.bmp", "noisy.bmp"]
-        # sys.argv[1:] = ["denoise", "noisy.bmp", "res.bmp"]
-        # sys.argv[1:] = ["calc_noise", "noisy.bmp"]
+    calc_queries = 1
+    if not calc_queries:
+        if not generating:
+            # sys.argv[1:] = ["median", "1", "noisy.bmp", "res.bmp"]
+            # sys.argv[1:] = ["bilateral", "2", "32", "noisy.bmp", "res.bmp"]
+            # sys.argv[1:] = ["mse", "../img/lena.bmp", "noisy.bmp"]
+            # sys.argv[1:] = ["denoise", "noisy.bmp", "res.bmp"]
+            # sys.argv[1:] = ["calc_noise", "noisy.bmp"]
 
-        parser = create_parser()
-        namespace = parser.parse_args(sys.argv[1:])
-        command = globals()[namespace.command]
-        result = command(namespace.params)
-        if isinstance(result,
-                      (Image.Image,
-                       BmpImagePlugin.BmpImageFile)):
-            result.save(namespace.params[-1])
+            parser = create_parser()
+            namespace = parser.parse_args(sys.argv[1:])
+            command = globals()[namespace.command]
+            result = command(namespace.params)
+            if isinstance(result,
+                          (Image.Image,
+                           BmpImagePlugin.BmpImageFile)):
+                result.save(namespace.params[-1])
+            else:
+                print(result)
         else:
-            print(result)
+            source = "../img/lena.bmp"
+            noisy = "noisy.bmp"
+            result = gen_noisy_image(source, 50)
+            result.save(noisy)
+            get_difference(source, noisy).save("res.bmp")
     else:
-        source = "../img/lena.bmp"
-        noisy = "noisy.bmp"
-        result = gen_noisy_image(source, 16)
-        result.save(noisy)
-        get_difference(source, noisy).save("res.bmp")
-
-    if calc_queries:
         noise_range = [0, 255, 25]
-        r_range = [0, 2, 1]
-        sigma_d_range = [1, 4, 1]
-        sigma_r_range = [1, 64, 10]
+        r_range = [0, 3, 1]
+        sigma_d_range = [1, 8, 1]
+        sigma_r_range = [1, 255, 25]
         source = "../img/lena.bmp"
-        data = "data.csv"
+        path = "data.csv"
 
         for noise_level in range(noise_range[0], noise_range[1], noise_range[2]):
             noisy = gen_noisy_image(source, noise_level)
@@ -243,10 +253,13 @@ if __name__ == '__main__':
             for r in range(r_range[0], r_range[1], r_range[2]):
                 for sigma_d in range(sigma_d_range[0], sigma_d_range[1], sigma_d_range[2]):
                     for sigma_r in range(sigma_r_range[0], sigma_r_range[1], sigma_r_range[2]):
+                        print(str(noise_level) + " " + str(r) + " " + str(sigma_d) + " " + str(sigma_r))
+                        print("cur min_query:" + str(min_query) + " min_mse = " + str(min_mse))
                         clean = median([r, noisy, ""])
                         clean = bilateral([sigma_d, sigma_r, clean, ""])
-                        cur_mse = mse([clean, noisy])
+                        cur_mse = mse([clean, source])
                         if cur_mse < min_mse:
                             min_mse = cur_mse
                             min_query = [r, sigma_d, sigma_r]
-            # TODO: Add to data.csv
+            data = [[noise_level, min_query[0], min_query[1], min_query[2]]]
+            csv_writer(data, path)
