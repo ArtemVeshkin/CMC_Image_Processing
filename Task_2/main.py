@@ -258,6 +258,7 @@ if __name__ == '__main__':
                         clean = median([r, noisy, ""])
                         clean = bilateral([sigma_d, sigma_r, clean, ""])
                         cur_mse = mse([clean, source])
+                        print("cur_mse = " + str(cur_mse))
                         if cur_mse < min_mse:
                             min_mse = cur_mse
                             min_query = [r, sigma_d, sigma_r]
