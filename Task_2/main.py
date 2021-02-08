@@ -4,6 +4,7 @@ import sys
 import math
 import argparse
 import csv
+import pandas as pd
 
 
 def create_parser():
@@ -105,8 +106,8 @@ def mse(params):
 # calc_noise (input_file)
 def calc_noise(params):
     r = 1
-    sigma_d = 2
-    sigma_r = 16
+    sigma_d = 6
+    sigma_r = 50
     clean = median([r, params[0], ""])
     clean = bilateral([sigma_d, sigma_r, clean, ""])
     return mse([params[0], clean])
@@ -182,16 +183,22 @@ def bilateral(params):
 
 # query (noise_level)
 def query(params):
-    pass
+    noise_level = float(params[0])
+    data = pd.read_csv("data.csv", names=['noise_level', 'r', 'sigma_d', 'sigma_r'])
+    xp = np.array(data.noise_level)
+
+    r = np.interp(noise_level, xp, np.array(data.r))
+    sigma_d = np.interp(noise_level, xp, np.array(data.sigma_d))
+    sigma_r = np.interp(noise_level, xp, np.array(data.sigma_r))
+
+    return [round(r), round(sigma_d), round(sigma_r)]
 
 
 # denoise (input_file) (output_file)
 def denoise(params):
-    r = 1
-    sigma_d = 3
-    sigma_r = 61
-    image = median([r, params[0], params[1]])
-    return bilateral([sigma_d, sigma_r, image, params[1]])
+    hyperparams = query([calc_noise([params[0]])])
+    image = median([hyperparams[0], params[0], params[1]])
+    return bilateral([hyperparams[1], hyperparams[2], image, params[1]])
 
 
 # for testing
@@ -213,14 +220,15 @@ def csv_writer(data, path):
 if __name__ == '__main__':
     # for testing
     generating = 0
-    calc_queries = 1
+    calc_queries = 0
     if not calc_queries:
         if not generating:
-            # sys.argv[1:] = ["median", "1", "noisy.bmp", "res.bmp"]
+            # sys.argv[1:] = ["median", "2", "noisy.bmp", "res.bmp"]
             # sys.argv[1:] = ["bilateral", "2", "32", "noisy.bmp", "res.bmp"]
-            # sys.argv[1:] = ["mse", "../img/lena.bmp", "noisy.bmp"]
+            # sys.argv[1:] = ["mse", "../img/lena.bmp", "res.bmp"]
             # sys.argv[1:] = ["denoise", "noisy.bmp", "res.bmp"]
             # sys.argv[1:] = ["calc_noise", "noisy.bmp"]
+            # sys.argv[1:] = ["query", "1"]
 
             parser = create_parser()
             namespace = parser.parse_args(sys.argv[1:])
@@ -235,13 +243,13 @@ if __name__ == '__main__':
         else:
             source = "../img/lena.bmp"
             noisy = "noisy.bmp"
-            result = gen_noisy_image(source, 50)
+            result = gen_noisy_image(source, 32)
             result.save(noisy)
             get_difference(source, noisy).save("res.bmp")
     else:
-        noise_range = [0, 255, 25]
-        r_range = [0, 3, 1]
-        sigma_d_range = [1, 8, 1]
+        noise_range = [225, 255, 25]
+        r_range = [1, 3, 1]
+        sigma_d_range = [14, 22, 1]
         sigma_r_range = [1, 255, 25]
         source = "../img/lena.bmp"
         path = "data.csv"
