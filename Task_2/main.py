@@ -125,8 +125,6 @@ def median(params):
     clean = noisy
     height, width = noisy.shape[0:2]
     for i in range(height):
-        if i % 10 == 0:
-            print("progress:" + str(i) + "/" + str(height))
         for j in range(width):
             clean[i, j, 0] = np.median(
                 noisy[max(0, i - r):min(height, i + r + 1), max(0, j - r):min(width, j + r + 1), 0])
@@ -167,8 +165,6 @@ def bilateral(params):
         else np.array(params[2])
 
     for i in range(new_image.shape[0]):
-        if i % 10 == 0:
-            print("progress:" + str(i) + "/" + str(new_image.shape[0]))
         for j in range(new_image.shape[1]):
             intensity = image[i:i + 2 * mask_size + 1, j:j + 2 * mask_size + 1] - image[i + mask_size, j + mask_size]
             intensity = (intensity[:, :, 0] + intensity[:, :, 1] + intensity[:, :, 2]) / 3
@@ -243,7 +239,7 @@ if __name__ == '__main__':
         else:
             source = "../img/lena.bmp"
             noisy = "noisy.bmp"
-            result = gen_noisy_image(source, 32)
+            result = gen_noisy_image(source, 15)
             result.save(noisy)
             get_difference(source, noisy).save("res.bmp")
     else:
@@ -261,12 +257,9 @@ if __name__ == '__main__':
             for r in range(r_range[0], r_range[1], r_range[2]):
                 for sigma_d in range(sigma_d_range[0], sigma_d_range[1], sigma_d_range[2]):
                     for sigma_r in range(sigma_r_range[0], sigma_r_range[1], sigma_r_range[2]):
-                        print(str(noise_level) + " " + str(r) + " " + str(sigma_d) + " " + str(sigma_r))
-                        print("cur min_query:" + str(min_query) + " min_mse = " + str(min_mse))
                         clean = median([r, noisy, ""])
                         clean = bilateral([sigma_d, sigma_r, clean, ""])
                         cur_mse = mse([clean, source])
-                        print("cur_mse = " + str(cur_mse))
                         if cur_mse < min_mse:
                             min_mse = cur_mse
                             min_query = [r, sigma_d, sigma_r]
