@@ -2,9 +2,10 @@
 
 Директория                | Описание
 --------------------------|----------------------
-[Task_1/](https://github.com/ArtemVeshkin/CMC_Image_Processing/tree/main/Task_1) | Задание 1
-[Task_2/](https://github.com/ArtemVeshkin/CMC_Image_Processing/tree/main/Task_2) | Задание 2
-[NeuralNetworks/Task_1/](https://github.com/ArtemVeshkin/CMC_Image_Processing/tree/main/NeuralNetworks/Task_1) | Задание 1 по нейронным сетям
-[NeuralNetworks/Task_2/](https://github.com/ArtemVeshkin/CMC_Image_Processing/tree/main/NeuralNetworks/Task_2) | Задание 2 по нейронным сетям
-[VarMethods/Task_1/](https://github.com/ArtemVeshkin/CMC_Image_Processing/tree/main/VarMethods/Task_1) | Задание 1 по вариационным методам
+[Task_1/](https://github.com/ArtemVeshkin/CMC_Image_Processing/tree/main/Task_1) | Задание 1 (Основы работы с изображениями)
+[Task_2/](https://github.com/ArtemVeshkin/CMC_Image_Processing/tree/main/Task_2) | Задание 2 (Шумоподавление)
+[NeuralNetworks/Task_1/](https://github.com/ArtemVeshkin/CMC_Image_Processing/tree/main/NeuralNetworks/Task_1) | Задание 1 по нейронным сетям (Классификация)
+[NeuralNetworks/Task_2/](https://github.com/ArtemVeshkin/CMC_Image_Processing/tree/main/NeuralNetworks/Task_2) | Задание 2 по нейронным сетям (Треккинг мяча)
+[VarMethods/Task_1/](https://github.com/ArtemVeshkin/CMC_Image_Processing/tree/main/VarMethods/Task_1) | Задание 1 по вариационным методам (Метод активных контуров)
+[VarMethods/Task_2/](https://github.com/ArtemVeshkin/CMC_Image_Processing/tree/main/VarMethods/Task_2) | Задание 2 по вариационным методам (Деконволюция)
 
